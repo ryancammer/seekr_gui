@@ -1,67 +1,169 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import * as path from 'path'
 
+import { Crawler, InternetComputer, WordExpansion } from 'seekr'
+
 import Store from 'electron-store'
 import fs from 'fs'
+import { SeekrGui } from './seekrGui'
 
 const store = new Store()
 
-const run = async (data: any) => {
-  // TODO: figure out how to asynchronously run this, and return the results
-  console.log('run', data)
+let crawler = null
+
+class Operations {
+  constructor() {}
+
+  wordsFrom(file: string) {
+    return fs
+      .readFileSync(file, 'utf8')
+      .split('\n')
+      .map((word) => word.trim())
+      .filter((word) => word.length > 0)
+  }
 }
 
-ipcMain.handle('toggle-running-state', async (data) => {
-  const key = 'seekr.state.running'
+const run = async (output: any) => {
+  const words = store.get(SeekrGui.Keys.State.Words) as Array<string>
+  const interestingDomains = store.get(
+    SeekrGui.Keys.State.InterestingDomains
+  ) as Array<string>
+  const debug = true
 
-  if (!store.get(key)) {
-    store.set(key, false)
+  crawler = new Crawler(
+    words,
+    debug,
+    output,
+    Crawler.DefaultSimultaneousRequests,
+    Crawler.DefaultRequestTimeout,
+    interestingDomains
+  )
+  await crawler.init()
+
+  const internetComputer = new InternetComputer()
+
+  await internetComputer.fetchAll(crawler.enqueueCrawl.bind(crawler))
+}
+
+ipcMain.handle(
+  SeekrGui.Keys.Channels.ToggleExpandedWords,
+  async (_event, useExpandedKeywords: boolean) => {
+    store.set(SeekrGui.Keys.State.UseExpandedWords, useExpandedKeywords)
   }
+)
 
-  const currentState = store.get(key)
-  store.set(key, !currentState)
-
-  if (currentState) {
-    await run(data)
-  }
-
-  return store.get(key)
+ipcMain.handle(SeekrGui.Keys.Channels.BackUpWords, async (_event) => {
+  store.set(
+    SeekrGui.Keys.State.BackupWords,
+    store.get(SeekrGui.Keys.State.Words)
+  )
 })
 
-ipcMain.handle('get-words', async () => {
-  if (fs.existsSync('dictionary.txt')) {
-    const dictionary = fs
-      .readFileSync('dictionary.txt', 'utf8')
-      .split('\n')
-      .map((word) => word.trim())
-    store.set('seekr.words', dictionary)
+ipcMain.handle(SeekrGui.Keys.Channels.RestoreWords, async (_event) => {
+  store.set(
+    SeekrGui.Keys.State.Words,
+    store.get(SeekrGui.Keys.State.BackupWords)
+  )
+})
+
+ipcMain.handle(
+  SeekrGui.Keys.Channels.GetReportResults,
+  async (): Promise<Array<any>> => {
+    return store.get(SeekrGui.Keys.State.ReportResults) as Array<any>
+  }
+)
+
+ipcMain.handle(
+  SeekrGui.Keys.Channels.GetWords,
+  async (): Promise<Array<string>> => {
+    if (fs.existsSync(SeekrGui.FileNames.Dictionary)) {
+      store.set(
+        SeekrGui.Keys.State.Words,
+        new Operations().wordsFrom(SeekrGui.FileNames.Dictionary)
+      )
+    } else {
+      store.set(SeekrGui.Keys.State.Words, [])
+    }
+
+    return store.get(SeekrGui.Keys.State.Words) as Array<string>
+  }
+)
+
+ipcMain.handle(
+  SeekrGui.Keys.Channels.SetWords,
+  async (_event, words: Array<string>) => {
+    store.set(SeekrGui.Keys.State.Words, words)
+  }
+)
+
+ipcMain.handle(
+  SeekrGui.Keys.Channels.GetExpandedWords,
+  async (): Promise<Array<string>> => {
+    const words = store.get(SeekrGui.Keys.State.Words) as string[]
+
+    const wordExpansion = new WordExpansion()
+
+    const expandedWords = words.flatMap((word) => {
+      return wordExpansion.expand(word)
+    })
+
+    const wordsSet = new Set(expandedWords)
+
+    words.forEach((word) => {
+      wordsSet.add(word)
+    })
+
+    store.set(SeekrGui.Keys.State.ExpandedWords, Array.from(wordsSet))
+
+    return store.get(SeekrGui.Keys.State.ExpandedWords) as Array<string>
+  }
+)
+
+ipcMain.handle(SeekrGui.Keys.Channels.GetInterestingDomains, async () => {
+  if (store.has(SeekrGui.Keys.State.InterestingDomains)) {
+    return store.get(SeekrGui.Keys.State.InterestingDomains)
+  }
+
+  if (fs.existsSync(SeekrGui.FileNames.InterestingDomains)) {
+    store.set(
+      SeekrGui.Keys.State.InterestingDomains,
+      new Operations().wordsFrom(SeekrGui.FileNames.InterestingDomains)
+    )
   } else {
-    store.set('seekr.words', [])
+    store.set(SeekrGui.Keys.State.InterestingDomains, [])
   }
 
-  return store.get('seekr.words')
+  return store.get(SeekrGui.Keys.State.InterestingDomains)
 })
 
-ipcMain.handle('get-interesting-domains', async () => {
-  if (store.has('seekr.interestingDomains')) {
-    return store.get('seekr.interestingDomains')
-  }
-
-  if (fs.existsSync('interesting_domains.txt')) {
-    const dictionary = fs
-      .readFileSync('interesting_domains.txt', 'utf8')
-      .split('\n')
-      .map((word) => word.trim())
-    store.set('seekr.interestingDomains', dictionary)
-  } else {
-    store.set('seekr.interestingDomains', [])
-  }
-
-  return store.get('seekr.interestingDomains')
+ipcMain.addListener(SeekrGui.Keys.Channels.ReportResults, (event: any) => {
+  console.log('<<< MAIN ipcMain.addListener event', event)
 })
 
-function createWindow() {
-  // Create the browser window.
+ipcMain.handle(SeekrGui.Keys.Channels.ToggleRunningState, async () => {
+  if (!store.get(SeekrGui.Keys.State.Running)) {
+    store.set(SeekrGui.Keys.State.Running, false)
+  }
+
+  const formerState = store.get(SeekrGui.Keys.State.Running)
+  store.set(SeekrGui.Keys.State.Running, !formerState)
+
+  const currentState = store.get(SeekrGui.Keys.State.Running)
+
+  if (currentState === true) {
+    const output = (input: any) => {
+      ipcMain.emit(SeekrGui.Keys.Channels.ReportResults, input)
+      const results = store.get(SeekrGui.Keys.State.ReportResults) as Array<any>
+      results.push(input)
+      store.set(SeekrGui.Keys.State.ReportResults, results)
+    }
+    await run(output)
+  }
+
+  return currentState
+})
+
+const createWindow = async () => {
   const mainWindow = new BrowserWindow({
     height: 1024,
     webPreferences: {
@@ -71,33 +173,30 @@ function createWindow() {
   })
 
   // and load the index.html of the app.
-  mainWindow.loadFile(path.join(__dirname, 'pages/seek_words.html'))
+  await mainWindow.loadFile(path.join(__dirname, 'pages/seek_words.html'))
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools()
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on('ready', () => {
-  createWindow()
+function clearState() {
+  store.clear()
+  store.set(SeekrGui.Keys.State.ReportResults, [])
+}
+
+app.on('ready', async () => {
+  clearState()
+  await createWindow()
 
   app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
+    // On macOS, it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app"s specific main process
-// code. You can also put them in separate files and require them here.
