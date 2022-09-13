@@ -1,8 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-// This is extremely annoying. preload doesn't want to behave like
-// javascript because it's so locked down. Fine. I'll just copy and paste
-// for now, which breaks the DRY principle. I'll fix this later.
 export class SeekrGui {
   static readonly FileNames = class {
     static readonly Dictionary = 'dictionary.txt'
@@ -28,16 +25,6 @@ export class SeekrGui {
 
 window.addEventListener('DOMContentLoaded', () => {})
 
-ipcRenderer.on('asynchronous-message', function (evt: any, message) {
-  console.log('asynchronous-message', evt)
-  console.log('asynchronous-message', message)
-  console.log(message) // Returns: {'SAVED': 'File Saved'}
-})
-
-ipcRenderer.on(SeekrGui.Keys.Channels.ReportResults, (event: any) => {
-  console.log('<<< PRELOAD  ipcRenderer.addListener event', event)
-})
-
 contextBridge.exposeInMainWorld('seekr', {
   backUpWords: async () => {
     return await ipcRenderer.invoke(SeekrGui.Keys.Channels.BackUpWords)
@@ -62,29 +49,7 @@ contextBridge.exposeInMainWorld('seekr', {
   },
 
   reportResults: (listener: any) => {
-    ipcRenderer.prependListener(SeekrGui.Keys.Channels.ReportResults, listener)
-    console.log('<<<<<<<<<<<<<<<<<<<<< setting up listener')
-    ipcRenderer.on(SeekrGui.Keys.Channels.ReportResults, listener)
-    ipcRenderer.on(SeekrGui.Keys.Channels.ReportResults, (event, arg) => {
-      console.log(event)
-      console.log(
-        '+++++++++++++++++++++++++++++++++++++defdefdef>>>>>>>>>>>>>>>>>>>>> got listener'
-      )
-      console.log(arg)
-    })
     ipcRenderer.addListener(SeekrGui.Keys.Channels.ReportResults, listener)
-    ipcRenderer.addListener(
-      SeekrGui.Keys.Channels.ReportResults,
-      (event, arg) => {
-        console.log(event)
-        console.log(
-          '+++++++++++++++++++++++++++++++++++++abcabcabc>>>>>>>>>>>>>>>>>>>>> got listener'
-        )
-        console.log(arg)
-      }
-    )
-
-    return 'HAHAHAHAHAAHAHA'
   },
 
   restoreWords: async () => {

@@ -1,15 +1,15 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
-import * as path from 'path'
-
-import { Crawler, InternetComputer, WordExpansion } from 'seekr'
-
-import Store from 'electron-store'
 import fs from 'fs'
+import { Crawler, InternetComputer, WordExpansion } from 'seekr'
+import * as path from 'path'
 import { SeekrGui } from './seekrGui'
+import Store from 'electron-store'
 
 const store = new Store()
 
 let crawler = null
+
+let mainWindow: BrowserWindow | null = null
 
 class Operations {
   constructor() {}
@@ -136,10 +136,6 @@ ipcMain.handle(SeekrGui.Keys.Channels.GetInterestingDomains, async () => {
   return store.get(SeekrGui.Keys.State.InterestingDomains)
 })
 
-ipcMain.addListener(SeekrGui.Keys.Channels.ReportResults, (event: any) => {
-  console.log('<<< MAIN ipcMain.addListener event', event)
-})
-
 ipcMain.handle(SeekrGui.Keys.Channels.ToggleRunningState, async () => {
   if (!store.get(SeekrGui.Keys.State.Running)) {
     store.set(SeekrGui.Keys.State.Running, false)
@@ -152,31 +148,46 @@ ipcMain.handle(SeekrGui.Keys.Channels.ToggleRunningState, async () => {
 
   if (currentState === true) {
     const output = (input: any) => {
-      ipcMain.emit(SeekrGui.Keys.Channels.ReportResults, input)
+      mainWindow?.webContents.send(SeekrGui.Keys.Channels.ReportResults, input)
+
       const results = store.get(SeekrGui.Keys.State.ReportResults) as Array<any>
       results.push(input)
       store.set(SeekrGui.Keys.State.ReportResults, results)
     }
+
+    // TODO: this really should spawn a new process
     await run(output)
   }
 
   return currentState
 })
 
-const createWindow = async () => {
-  const mainWindow = new BrowserWindow({
-    height: 1024,
+const createWindow = async (debug: boolean) => {
+  const windowHeight = debug
+    ? SeekrGui.Window.DebugHeight
+    : SeekrGui.Window.Height
+  const windowWidth = debug ? SeekrGui.Window.DebugWidth : SeekrGui.Window.Width
+
+  let mainWindow = new BrowserWindow({
+    height: windowHeight,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
     },
-    width: 1280
+    width: windowWidth
   })
 
-  // and load the index.html of the app.
   await mainWindow.loadFile(path.join(__dirname, 'pages/seek_words.html'))
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools()
+  setInterval(() => {
+    mainWindow.webContents.send(
+      SeekrGui.Keys.Channels.ReportResults,
+      store.get(SeekrGui.Keys.State.ReportResults)
+    )
+  }, 5000)
+
+  if (debug) {
+    mainWindow.webContents.openDevTools()
+  }
 }
 
 function clearState() {
@@ -186,12 +197,13 @@ function clearState() {
 
 app.on('ready', async () => {
   clearState()
-  await createWindow()
+  const debug = process.env['DEBUG'] === 'true'
+  await createWindow(debug)
 
   app.on('activate', function () {
     // On macOS, it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(debug)
   })
 })
 

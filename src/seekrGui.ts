@@ -29,4 +29,12 @@ export class SeekrGui {
       static readonly UseExpandedWords = 'seekr.state.useExpandedWords'
     }
   }
+
+  static readonly Window = class {
+    static readonly Height = 978
+    static readonly Width = 600
+
+    static readonly DebugHeight = 1024
+    static readonly DebugWidth = 1280
+  }
 }

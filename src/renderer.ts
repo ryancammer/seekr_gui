@@ -64,22 +64,23 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
 
   await loadInterestingDomains()
 
-  window.seekr.reportResults((results: any) => {
+  window.seekr.reportResults((_event: any, data: any) => {
     const resultsElement = document.querySelector(SeekrGui.Controls.Results)
 
     if (resultsElement) {
-      resultsElement.innerHTML = resultsElement.innerHTML + results
+      resultsElement.innerHTML = data
     }
   })
 
   document
     .querySelector(SeekrGui.Controls.ToggleSeekrButton)
     ?.addEventListener(SeekrGui.Events.Click, async (event) => {
-      const running = await window.seekr.toggleRunningState()
       const toggleButton = event.target as HTMLButtonElement
-      toggleButton.textContent = running
-        ? SeekrGui.Text.Stop
-        : SeekrGui.Text.Start
+      toggleButton.textContent = SeekrGui.Text.Stop
+        ? SeekrGui.Text.Start
+        : SeekrGui.Text.Stop
+
+      await window.seekr.toggleRunningState()
     })
 
   document
