@@ -32,7 +32,7 @@ export class SeekrGui {
 
   static readonly Window = class {
     static readonly Height = 978
-    static readonly Width = 600
+    static readonly Width = 650
 
     static readonly DebugHeight = 1024
     static readonly DebugWidth = 1280

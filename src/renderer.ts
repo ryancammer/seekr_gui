@@ -67,8 +67,18 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
   window.seekr.reportResults((_event: any, data: any) => {
     const resultsElement = document.querySelector(SeekrGui.Controls.Results)
 
+    let resultsData = new Array<string>()
+
+    data.forEach((result: any) => {
+      if (result.found && result.matches.length > 0) {
+        resultsData.push(`${result.url} ${result.matches.join(', ')}`)
+      } else {
+        console.log(result) // TODO: only do this if debug is true
+      }
+    })
+
     if (resultsElement) {
-      resultsElement.innerHTML = data
+      resultsElement.innerHTML = resultsData.join(SeekrGui.Text.LineFeed)
     }
   })
 
@@ -76,9 +86,10 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
     .querySelector(SeekrGui.Controls.ToggleSeekrButton)
     ?.addEventListener(SeekrGui.Events.Click, async (event) => {
       const toggleButton = event.target as HTMLButtonElement
-      toggleButton.textContent = SeekrGui.Text.Stop
-        ? SeekrGui.Text.Start
-        : SeekrGui.Text.Stop
+      toggleButton.textContent =
+        toggleButton.textContent == SeekrGui.Text.Stop
+          ? SeekrGui.Text.Start
+          : SeekrGui.Text.Stop
 
       await window.seekr.toggleRunningState()
     })

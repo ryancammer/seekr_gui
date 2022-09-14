@@ -7,6 +7,8 @@ import Store from 'electron-store'
 
 const store = new Store()
 
+const debug = process.env['DEBUG'] === 'true'
+
 let crawler = null
 
 let mainWindow: BrowserWindow | null = null
@@ -197,7 +199,6 @@ function clearState() {
 
 app.on('ready', async () => {
   clearState()
-  const debug = process.env['DEBUG'] === 'true'
   await createWindow(debug)
 
   app.on('activate', function () {
