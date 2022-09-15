@@ -1,11 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 export class SeekrGui {
-  static readonly FileNames = class {
-    static readonly Dictionary = 'dictionary.txt'
-    static readonly InterestingDomains = 'interesting_domains.txt'
-  }
-
   static readonly Keys = class {
     static readonly Channels = class {
       static readonly BackUpWords = 'back-up-words'
@@ -15,6 +10,7 @@ export class SeekrGui {
       static readonly GetReportResults = 'get-report-results'
       static readonly ReportResults = 'report-results'
       static readonly RestoreWords = 'restore-words'
+      static readonly SaveWords = 'save-words'
       static readonly SetWords = 'set-words'
       static readonly SetInterestingDomains = 'set-interesting-domains'
       static readonly ToggleExpandedWords = 'toggle-expanded-words'
@@ -54,6 +50,10 @@ contextBridge.exposeInMainWorld('seekr', {
 
   restoreWords: async () => {
     await ipcRenderer.invoke(SeekrGui.Keys.Channels.RestoreWords)
+  },
+
+  saveWords: async () => {
+    return await ipcRenderer.invoke(SeekrGui.Keys.Channels.SaveWords)
   },
 
   setInterestingDomains: async (interestingDomains: string[]) => {

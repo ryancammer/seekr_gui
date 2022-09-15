@@ -75,16 +75,32 @@ ipcMain.handle(
   }
 )
 
+ipcMain.handle(SeekrGui.Keys.Channels.SaveWords, async () => {
+  const words = store.get(SeekrGui.Keys.State.Words) as Array<string>
+
+  const file = fs.openSync(SeekrGui.FileNames.Dictionary, 'w')
+
+  words.forEach((word) => {
+    fs.writeSync(file, word + '\n')
+  })
+
+  fs.closeSync(file)
+})
+
 ipcMain.handle(
   SeekrGui.Keys.Channels.GetWords,
   async (): Promise<Array<string>> => {
-    if (fs.existsSync(SeekrGui.FileNames.Dictionary)) {
-      store.set(
-        SeekrGui.Keys.State.Words,
-        new Operations().wordsFrom(SeekrGui.FileNames.Dictionary)
-      )
-    } else {
-      store.set(SeekrGui.Keys.State.Words, [])
+    const words = store.get(SeekrGui.Keys.State.Words) as Array<string>
+
+    if (!words) {
+      if (fs.existsSync(SeekrGui.FileNames.Dictionary)) {
+        store.set(
+          SeekrGui.Keys.State.Words,
+          new Operations().wordsFrom(SeekrGui.FileNames.Dictionary)
+        )
+      } else {
+        store.set(SeekrGui.Keys.State.Words, [])
+      }
     }
 
     return store.get(SeekrGui.Keys.State.Words) as Array<string>
@@ -151,10 +167,6 @@ ipcMain.handle(SeekrGui.Keys.Channels.ToggleRunningState, async () => {
   if (currentState === true) {
     const output = (input: any) => {
       mainWindow?.webContents.send(SeekrGui.Keys.Channels.ReportResults, input)
-
-      const results = store.get(SeekrGui.Keys.State.ReportResults) as Array<any>
-      results.push(input)
-      store.set(SeekrGui.Keys.State.ReportResults, results)
     }
 
     // TODO: this really should spawn a new process
@@ -170,7 +182,7 @@ const createWindow = async (debug: boolean) => {
     : SeekrGui.Window.Height
   const windowWidth = debug ? SeekrGui.Window.DebugWidth : SeekrGui.Window.Width
 
-  let mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     height: windowHeight,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
@@ -180,12 +192,12 @@ const createWindow = async (debug: boolean) => {
 
   await mainWindow.loadFile(path.join(__dirname, 'pages/seek_words.html'))
 
-  setInterval(() => {
-    mainWindow.webContents.send(
-      SeekrGui.Keys.Channels.ReportResults,
-      store.get(SeekrGui.Keys.State.ReportResults)
-    )
-  }, 5000)
+  // setInterval(() => {
+  //   mainWindow.webContents.send(
+  //     SeekrGui.Keys.Channels.ReportResults,
+  //     store.get(SeekrGui.Keys.State.ReportResults)
+  //   )
+  // }, 5000)
 
   if (debug) {
     mainWindow.webContents.openDevTools()

@@ -4,6 +4,7 @@ class SeekrGui {
     static readonly ExpandWordsCheckbox = '#expand-words-checkbox'
     static readonly InterestingDomainsSelector = '#interesting-domains'
     static readonly Results = '#results'
+    static readonly SaveWordsButton = '#save-words-button'
     static readonly ToggleSeekrButton = '#toggle-seekr-button'
     static readonly ViewResultsButton = '#view-results-button'
   }
@@ -28,23 +29,26 @@ const setExpandedWords = async (isExpanded: boolean) => {
 const loadExpandedWordsList = async () => {
   await window.seekr.backUpWords()
   const words = await window.seekr.getExpandedWords()
+
   const dictionaryElement = document.querySelector(
     SeekrGui.Controls.DictionarySelector
-  )
+  ) as HTMLTextAreaElement
 
   if (dictionaryElement) {
-    dictionaryElement.innerHTML = words.join('\r\n')
+    dictionaryElement.value = words.join('\r\n')
   }
 }
 
 const loadDictionary = async () => {
+  console.log('LOADING DICTIONARY')
   const dictionaryElement = document.querySelector(
     SeekrGui.Controls.DictionarySelector
-  )
+  ) as HTMLTextAreaElement
 
   if (dictionaryElement) {
     const words = await window.seekr.getWords()
-    dictionaryElement.innerHTML = words.join('\r\n')
+    console.log('loadDictionary! WORDS: ', words)
+    dictionaryElement.value = words.join('\r\n')
   }
 }
 
@@ -64,21 +68,60 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
 
   await loadInterestingDomains()
 
-  window.seekr.reportResults((_event: any, data: any) => {
-    const resultsElement = document.querySelector(SeekrGui.Controls.Results)
+  window.seekr.reportResults((_event: any, result: any) => {
+    const resultsElement = document.querySelector(
+      SeekrGui.Controls.Results
+    ) as HTMLTextAreaElement
 
-    let resultsData = new Array<string>()
+    if (result.found && result.matches.length > 0) {
+      resultsElement.value =
+        resultsElement.value +
+        `${result.url} ${result.matches.join(', ')}` +
+        '\r\n'
+    }
+    if (result.startsWith('Processed')) {
+      const regex =
+        /Processed (?<totalProcessed>\d+) pages in (?<totalTime>\d+\.\d+) s. Percent complete: (?<percentComplete>\d+\.\d+). Total urls in queue: (?<remaining>\d+), total added: (?<added>\d+)/
 
-    data.forEach((result: any) => {
-      if (result.found && result.matches.length > 0) {
-        resultsData.push(`${result.url} ${result.matches.join(', ')}`)
-      } else {
-        console.log(result) // TODO: only do this if debug is true
+      const matches = result.match(regex)
+
+      const totalProcessedElement = document.querySelector(
+        '#total-processed'
+      ) as HTMLSpanElement
+
+      if (totalProcessedElement) {
+        totalProcessedElement.innerText = `Total Processed: ${matches?.groups?.totalProcessed}`
       }
-    })
 
-    if (resultsElement) {
-      resultsElement.innerHTML = resultsData.join(SeekrGui.Text.LineFeed)
+      const totalTimeElement = document.querySelector(
+        '#total-time'
+      ) as HTMLSpanElement
+
+      if (totalTimeElement) {
+        totalTimeElement.innerText = `Total Time: ${matches?.groups?.totalTime} s`
+      }
+
+      const percentCompleteElement = document.querySelector(
+        '#percent-complete'
+      ) as HTMLSpanElement
+
+      if (percentCompleteElement) {
+        percentCompleteElement.innerText = `Percent Complete: ${matches?.groups?.percentComplete} %`
+      }
+
+      const remainingElement = document.querySelector(
+        '#remaining'
+      ) as HTMLSpanElement
+
+      if (remainingElement) {
+        remainingElement.innerText = `Remaining: ${matches?.groups?.remaining}`
+      }
+
+      const addedElement = document.querySelector('#added') as HTMLSpanElement
+
+      if (addedElement) {
+        addedElement.innerText = `Total: ${matches?.groups?.added}`
+      }
     }
   })
 
@@ -92,6 +135,12 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
           : SeekrGui.Text.Stop
 
       await window.seekr.toggleRunningState()
+    })
+
+  document
+    .querySelector(SeekrGui.Controls.SaveWordsButton)
+    ?.addEventListener(SeekrGui.Events.Click, async () => {
+      await window.seekr.saveWords()
     })
 
   document
@@ -116,6 +165,7 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
       } else {
         await setExpandedWords(false)
         await window.seekr.restoreWords()
+        console.log('RESTORED WORDS')
         await loadDictionary()
       }
     })

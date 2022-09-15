@@ -14,6 +14,7 @@ export class SeekrGui {
       static readonly ReportResults = 'report-results'
       static readonly RestoreWords = 'restore-words'
       static readonly SetWords = 'set-words'
+      static readonly SaveWords = 'save-words'
       static readonly SetInterestingDomains = 'set-interesting-domains'
       static readonly ToggleExpandedWords = 'toggle-expanded-words'
       static readonly ToggleRunningState = 'toggle-running-state'
@@ -31,8 +32,8 @@ export class SeekrGui {
   }
 
   static readonly Window = class {
-    static readonly Height = 978
-    static readonly Width = 650
+    static readonly Height = 760
+    static readonly Width = 1260
 
     static readonly DebugHeight = 1024
     static readonly DebugWidth = 1280
