@@ -69,6 +69,17 @@ const loadInterestingDomains = async () => {
 }
 
 document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
+  const imageModal = document.getElementById('image-modal')
+  imageModal?.addEventListener('show.bs.modal', (event) => {
+    // @ts-ignore
+    const button = event.relatedTarget
+    const source = button.getAttribute('data-bs-source')
+    const imageModal = document.getElementById(
+      'image-modal-image'
+    ) as HTMLImageElement
+    imageModal.src = source
+  })
+
   await loadDictionary()
 
   await loadInterestingDomains()
@@ -187,22 +198,6 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
     }
   })
 
-  document
-    .querySelector('#image-modal')
-    ?.addEventListener('show.bs.modal', (_event: any) => {
-      console.log('hahahaha')
-      const imageModal = document.getElementById('image-modal')
-      imageModal?.addEventListener('show.bs.modal', (event) => {
-        // @ts-ignore
-        const button = event.relatedTarget
-        // Extract info from data-bs-* attributes
-        const source = button.getAttribute('data-bs-source')
-        const imageModal = document.getElementById(
-          'image-modal-image'
-        ) as HTMLImageElement
-        imageModal.src = source
-      })
-    })
   document
     .querySelector(SeekrGui.Controls.ToggleSeekrButton)
     ?.addEventListener(SeekrGui.Events.Click, async (event) => {
