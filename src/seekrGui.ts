@@ -6,9 +6,12 @@ export class SeekrGui {
 
   static readonly Keys = class {
     static readonly Channels = class {
+      static readonly AddImage = 'add-image'
       static readonly BackUpWords = 'back-up-words'
       static readonly GetWords = 'get-words'
       static readonly GetExpandedWords = 'get-expanded-words'
+      static readonly GetImagePaths = 'get-image-paths'
+      static readonly GetImages = 'get-images'
       static readonly GetInterestingDomains = 'get-interesting-domains'
       static readonly GetReportResults = 'get-report-results'
       static readonly ReportResults = 'report-results'
@@ -23,6 +26,7 @@ export class SeekrGui {
     static readonly State = class {
       static readonly BackupWords = 'seekr.state.backupWords'
       static readonly ExpandedWords = 'seekr.state.expandedWords'
+      static readonly ImagePaths = 'seekr.state.imagePaths'
       static readonly InterestingDomains = 'seekr.state.interestingDomains'
       static readonly ReportResults = 'seekr.state.reportResults'
       static readonly Running = 'seekr.state.running'
@@ -32,10 +36,10 @@ export class SeekrGui {
   }
 
   static readonly Window = class {
-    static readonly Height = 760
+    static readonly Height = 766
     static readonly Width = 1260
 
-    static readonly DebugHeight = 1024
-    static readonly DebugWidth = 1280
+    static readonly DebugHeight = 766
+    static readonly DebugWidth = 2000
   }
 }

@@ -35,6 +35,7 @@ const run = async (output: any) => {
   crawler = new Crawler(
     words,
     debug,
+    true,
     output,
     Crawler.DefaultSimultaneousRequests,
     Crawler.DefaultRequestTimeout,
@@ -42,10 +43,32 @@ const run = async (output: any) => {
   )
   await crawler.init()
 
+  if (!fs.existsSync(Crawler.DefaultScreenshotPath)) {
+    fs.mkdirSync(Crawler.DefaultScreenshotPath, 0o744)
+  }
+
   const internetComputer = new InternetComputer()
 
   await internetComputer.fetchAll(crawler.enqueueCrawl.bind(crawler))
 }
+
+ipcMain.handle(SeekrGui.Keys.Channels.GetImagePaths, async () => {
+  const files = fs.readdirSync(Crawler.DefaultScreenshotPath)
+
+  return files.map((file) => {
+    return path.join(process.cwd(), Crawler.DefaultScreenshotPath, file)
+  })
+})
+
+ipcMain.handle(SeekrGui.Keys.Channels.AddImage, async (_event, imagePath) => {
+  const imagePaths = store.get(SeekrGui.Keys.State.ImagePaths) as Array<string>
+  imagePaths.push(imagePath)
+  store.set(SeekrGui.Keys.State.ImagePaths, imagePaths)
+})
+
+ipcMain.handle(SeekrGui.Keys.Channels.GetImages, async () => {
+  return store.get(SeekrGui.Keys.State.ImagePaths) as Array<string>
+})
 
 ipcMain.handle(
   SeekrGui.Keys.Channels.ToggleExpandedWords,
@@ -207,6 +230,7 @@ const createWindow = async (debug: boolean) => {
 function clearState() {
   store.clear()
   store.set(SeekrGui.Keys.State.ReportResults, [])
+  store.set(SeekrGui.Keys.State.ImagePaths, [])
 }
 
 app.on('ready', async () => {

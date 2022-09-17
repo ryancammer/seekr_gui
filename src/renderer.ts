@@ -3,16 +3,23 @@ class SeekrGui {
     static readonly DictionarySelector = '#dictionary'
     static readonly ExpandWordsCheckbox = '#expand-words-checkbox'
     static readonly InterestingDomainsSelector = '#interesting-domains'
+    static readonly ProgressBar = '#progress-bar'
     static readonly Results = '#results'
     static readonly SaveWordsButton = '#save-words-button'
     static readonly ToggleSeekrButton = '#toggle-seekr-button'
     static readonly ViewResultsButton = '#view-results-button'
+    static readonly Screenshots = '#screenshots'
   }
 
   static readonly Events = class {
     static readonly Change = 'change'
     static readonly DOMContentLoaded = 'DOMContentLoaded'
     static readonly Click = 'click'
+  }
+
+  static readonly ScreenShots = class {
+    static readonly ImageHeight = 135
+    static readonly ImageWidth = 180
   }
 
   static readonly Text = class {
@@ -40,14 +47,12 @@ const loadExpandedWordsList = async () => {
 }
 
 const loadDictionary = async () => {
-  console.log('LOADING DICTIONARY')
   const dictionaryElement = document.querySelector(
     SeekrGui.Controls.DictionarySelector
   ) as HTMLTextAreaElement
 
   if (dictionaryElement) {
     const words = await window.seekr.getWords()
-    console.log('loadDictionary! WORDS: ', words)
     dictionaryElement.value = words.join('\r\n')
   }
 }
@@ -68,7 +73,8 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
 
   await loadInterestingDomains()
 
-  window.seekr.reportResults((_event: any, result: any) => {
+  window.seekr.reportResults(async (_event: any, result: any) => {
+    console.log(result)
     const resultsElement = document.querySelector(
       SeekrGui.Controls.Results
     ) as HTMLTextAreaElement
@@ -79,7 +85,55 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
         `${result.url} ${result.matches.join(', ')}` +
         '\r\n'
     }
-    if (result.startsWith('Processed')) {
+
+    const imagePaths = await window.seekr.getImagePaths()
+
+    const images = await window.seekr.getImages()
+
+    const screenshotsElement = document.querySelector(
+      SeekrGui.Controls.Screenshots
+    )
+
+    const toHash = (s: string) => {
+      let hash = 0
+
+      if (s.length == 0) return hash
+
+      for (let i = 0; i < s.length; i++) {
+        const char = s.charCodeAt(i)
+        hash = (hash << 5) - hash + char
+        hash = hash & hash
+      }
+
+      return hash
+    }
+
+    for (const imagePath of imagePaths) {
+      const imageId = toHash(imagePath).toString()
+
+      if (!images.includes(imageId)) {
+        const image = document.createElement('img')
+        image.src = imagePath
+        image.width = SeekrGui.ScreenShots.ImageWidth
+        image.height = SeekrGui.ScreenShots.ImageHeight
+        image.id = imageId
+
+        const dataBsToggle = document.createAttribute('data-bs-toggle')
+        dataBsToggle.value = 'modal'
+        image.attributes.setNamedItem(dataBsToggle)
+        const dataBsTarget = document.createAttribute('data-bs-target')
+        dataBsTarget.value = '#image-modal'
+        image.attributes.setNamedItem(dataBsTarget)
+        const dataBsSource = document.createAttribute('data-bs-source')
+        dataBsSource.value = imagePath
+        image.attributes.setNamedItem(dataBsSource)
+        screenshotsElement?.appendChild(image)
+
+        await window.seekr.addImage(imageId)
+      }
+    }
+
+    if (typeof result === 'string' && result.startsWith('Processed')) {
       const regex =
         /Processed (?<totalProcessed>\d+) pages in (?<totalTime>\d+\.\d+) s. Percent complete: (?<percentComplete>\d+\.\d+). Total urls in queue: (?<remaining>\d+), total added: (?<added>\d+)/
 
@@ -122,9 +176,33 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
       if (addedElement) {
         addedElement.innerText = `Total: ${matches?.groups?.added}`
       }
+
+      const progressBarElement = document.querySelector(
+        SeekrGui.Controls.ProgressBar
+      ) as HTMLDivElement
+
+      if (progressBarElement) {
+        progressBarElement.style.width = `${matches?.groups?.percentComplete}%`
+      }
     }
   })
 
+  document
+    .querySelector('#image-modal')
+    ?.addEventListener('show.bs.modal', (_event: any) => {
+      console.log('hahahaha')
+      const imageModal = document.getElementById('image-modal')
+      imageModal?.addEventListener('show.bs.modal', (event) => {
+        // @ts-ignore
+        const button = event.relatedTarget
+        // Extract info from data-bs-* attributes
+        const source = button.getAttribute('data-bs-source')
+        const imageModal = document.getElementById(
+          'image-modal-image'
+        ) as HTMLImageElement
+        imageModal.src = source
+      })
+    })
   document
     .querySelector(SeekrGui.Controls.ToggleSeekrButton)
     ?.addEventListener(SeekrGui.Events.Click, async (event) => {
@@ -165,7 +243,6 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
       } else {
         await setExpandedWords(false)
         await window.seekr.restoreWords()
-        console.log('RESTORED WORDS')
         await loadDictionary()
       }
     })

@@ -125,3 +125,6 @@ dist
 
 # electron-forge output files
 out/*
+
+# The screenshots directory is where screenshots are taken by the app
+screenshots/*

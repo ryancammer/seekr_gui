@@ -3,11 +3,14 @@ import { contextBridge, ipcRenderer } from 'electron'
 export class SeekrGui {
   static readonly Keys = class {
     static readonly Channels = class {
+      static readonly AddImage = 'add-image'
       static readonly BackUpWords = 'back-up-words'
-      static readonly GetWords = 'get-words'
       static readonly GetExpandedWords = 'get-expanded-words'
+      static readonly GetImagePaths = 'get-image-paths'
+      static readonly GetImages = 'get-images'
       static readonly GetInterestingDomains = 'get-interesting-domains'
       static readonly GetReportResults = 'get-report-results'
+      static readonly GetWords = 'get-words'
       static readonly ReportResults = 'report-results'
       static readonly RestoreWords = 'restore-words'
       static readonly SaveWords = 'save-words'
@@ -22,12 +25,24 @@ export class SeekrGui {
 window.addEventListener('DOMContentLoaded', () => {})
 
 contextBridge.exposeInMainWorld('seekr', {
+  addImage: async (imagePath: string) => {
+    return await ipcRenderer.invoke(SeekrGui.Keys.Channels.AddImage, imagePath)
+  },
+
   backUpWords: async () => {
     return await ipcRenderer.invoke(SeekrGui.Keys.Channels.BackUpWords)
   },
 
   getExpandedWords: async () => {
     return await ipcRenderer.invoke(SeekrGui.Keys.Channels.GetExpandedWords)
+  },
+
+  getImages: async () => {
+    return await ipcRenderer.invoke(SeekrGui.Keys.Channels.GetImages)
+  },
+
+  getImagePaths: async () => {
+    return await ipcRenderer.invoke(SeekrGui.Keys.Channels.GetImagePaths)
   },
 
   getInterestingDomains: async () => {
