@@ -29,6 +29,55 @@ class SeekrGui {
   }
 }
 
+let completionStatsInterval: any = null
+
+const setCompletionStats = async () => {
+  const completionStats = await window.seekr.getCompletionStats()
+
+  const totalProcessedElement = document.querySelector(
+    '#total-processed'
+  ) as HTMLSpanElement
+
+  if (totalProcessedElement) {
+    totalProcessedElement.innerText = `Total Processed: ${completionStats.canistersProcessed}`
+  }
+
+  const totalTimeElement = document.querySelector(
+    '#total-time'
+  ) as HTMLSpanElement
+
+  if (totalTimeElement) {
+    totalTimeElement.innerText = `Total Time: ${completionStats.totalTime} s`
+  }
+
+  const percentCompleteElement = document.querySelector(
+    '#percent-complete'
+  ) as HTMLSpanElement
+
+  if (percentCompleteElement) {
+    percentCompleteElement.innerText = `Percent Complete: ${completionStats.percentComplete} %`
+  }
+
+  const remainingElement = document.querySelector(
+    '#remaining'
+  ) as HTMLSpanElement
+
+  if (remainingElement) {
+    remainingElement.innerText = `Remaining: ${
+      completionStats.totalNumberOfCanisters -
+      completionStats.canistersProcessed
+    }`
+  }
+
+  const progressBarElement = document.querySelector(
+    SeekrGui.Controls.ProgressBar
+  ) as HTMLDivElement
+
+  if (progressBarElement) {
+    progressBarElement.style.width = `${completionStats.percentComplete}%`
+  }
+}
+
 const setExpandedWords = async (isExpanded: boolean) => {
   await window.seekr.toggleExpandedWords(isExpanded)
 }
@@ -145,17 +194,14 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
     }
 
     if (typeof result === 'string' && result.startsWith('Processed')) {
-      const regex =
-        /Processed (?<totalProcessed>\d+) pages in (?<totalTime>\d+\.\d+) s. Percent complete: (?<percentComplete>\d+\.\d+). Total urls in queue: (?<remaining>\d+), total added: (?<added>\d+)/
-
-      const matches = result.match(regex)
+      const completionStats = await window.seekr.getCompletionStats()
 
       const totalProcessedElement = document.querySelector(
         '#total-processed'
       ) as HTMLSpanElement
 
       if (totalProcessedElement) {
-        totalProcessedElement.innerText = `Total Processed: ${matches?.groups?.totalProcessed}`
+        totalProcessedElement.innerText = `Total Processed: ${completionStats.canistersProcessed}`
       }
 
       const totalTimeElement = document.querySelector(
@@ -163,7 +209,7 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
       ) as HTMLSpanElement
 
       if (totalTimeElement) {
-        totalTimeElement.innerText = `Total Time: ${matches?.groups?.totalTime} s`
+        totalTimeElement.innerText = `Total Time: ${completionStats.totalTime} s`
       }
 
       const percentCompleteElement = document.querySelector(
@@ -171,7 +217,7 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
       ) as HTMLSpanElement
 
       if (percentCompleteElement) {
-        percentCompleteElement.innerText = `Percent Complete: ${matches?.groups?.percentComplete} %`
+        percentCompleteElement.innerText = `Percent Complete: ${completionStats.percentComplete} %`
       }
 
       const remainingElement = document.querySelector(
@@ -179,13 +225,10 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
       ) as HTMLSpanElement
 
       if (remainingElement) {
-        remainingElement.innerText = `Remaining: ${matches?.groups?.remaining}`
-      }
-
-      const addedElement = document.querySelector('#added') as HTMLSpanElement
-
-      if (addedElement) {
-        addedElement.innerText = `Total: ${matches?.groups?.added}`
+        remainingElement.innerText = `Remaining: ${
+          completionStats.totalNumberOfCanisters -
+          completionStats.canistersProcessed
+        }`
       }
 
       const progressBarElement = document.querySelector(
@@ -193,7 +236,7 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
       ) as HTMLDivElement
 
       if (progressBarElement) {
-        progressBarElement.style.width = `${matches?.groups?.percentComplete}%`
+        progressBarElement.style.width = `${completionStats.percentComplete}%`
       }
     }
   })
@@ -206,6 +249,15 @@ document.addEventListener(SeekrGui.Events.DOMContentLoaded, async () => {
         toggleButton.textContent == SeekrGui.Text.Stop
           ? SeekrGui.Text.Start
           : SeekrGui.Text.Stop
+
+      if (completionStatsInterval == null) {
+        completionStatsInterval = setInterval(async () => {
+          await setCompletionStats()
+        }, 2000)
+      } else {
+        clearInterval(completionStatsInterval)
+        completionStatsInterval = null
+      }
 
       await window.seekr.toggleRunningState()
     })

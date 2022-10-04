@@ -11,6 +11,8 @@ const debug = process.env['DEBUG'] === 'true'
 
 let crawler = null
 
+const internetComputer = new InternetComputer()
+
 let mainWindow: BrowserWindow | null = null
 
 class Operations {
@@ -24,6 +26,20 @@ class Operations {
       .filter((word) => word.length > 0)
   }
 }
+
+const homePath = app.getPath('home')
+const seekrPath = path.join(homePath, '.seekr')
+const screenshotPath = path.join(seekrPath, 'screenshots')
+
+if (!fs.existsSync(seekrPath)) {
+  fs.mkdirSync(seekrPath)
+}
+
+if (fs.existsSync(screenshotPath)) {
+  fs.renameSync(screenshotPath, screenshotPath + '.old')
+}
+
+fs.mkdirSync(screenshotPath)
 
 const run = async (output: any) => {
   const words = store.get(SeekrGui.Keys.State.Words) as Array<string>
@@ -43,20 +59,14 @@ const run = async (output: any) => {
   )
   await crawler.init()
 
-  if (!fs.existsSync(Crawler.DefaultScreenshotPath)) {
-    fs.mkdirSync(Crawler.DefaultScreenshotPath, 0o744)
-  }
-
-  const internetComputer = new InternetComputer()
-
   await internetComputer.fetchAll(crawler.enqueueCrawl.bind(crawler))
 }
 
 ipcMain.handle(SeekrGui.Keys.Channels.GetImagePaths, async () => {
-  const files = fs.readdirSync(Crawler.DefaultScreenshotPath)
+  const files = fs.readdirSync(screenshotPath)
 
   return files.map((file) => {
-    return path.join(process.cwd(), Crawler.DefaultScreenshotPath, file)
+    return path.join(process.cwd(), screenshotPath, file)
   })
 })
 
@@ -91,6 +101,16 @@ ipcMain.handle(SeekrGui.Keys.Channels.RestoreWords, async (_event) => {
   )
 })
 
+ipcMain.handle(SeekrGui.Keys.Channels.GetCompletionStats, async (_event) => {
+  const totalNumberOfCanisters = await internetComputer.totalNumberOfCanisters()
+  return {
+    totalNumberOfCanisters: totalNumberOfCanisters,
+    canistersProcessed: internetComputer.canistersProcessed,
+    percentComplete: internetComputer.percentComplete,
+    totalTime: internetComputer.totalTime
+  }
+})
+
 ipcMain.handle(
   SeekrGui.Keys.Channels.GetReportResults,
   async (): Promise<Array<any>> => {
@@ -101,7 +121,10 @@ ipcMain.handle(
 ipcMain.handle(SeekrGui.Keys.Channels.SaveWords, async () => {
   const words = store.get(SeekrGui.Keys.State.Words) as Array<string>
 
-  const file = fs.openSync(SeekrGui.FileNames.Dictionary, 'w')
+  const file = fs.openSync(
+    path.join(seekrPath, SeekrGui.FileNames.Dictionary),
+    'w'
+  )
 
   words.forEach((word) => {
     fs.writeSync(file, word + '\n')
@@ -115,11 +138,13 @@ ipcMain.handle(
   async (): Promise<Array<string>> => {
     const words = store.get(SeekrGui.Keys.State.Words) as Array<string>
 
-    if (!words) {
-      if (fs.existsSync(SeekrGui.FileNames.Dictionary)) {
+    if (!words || words.length < 1) {
+      if (fs.existsSync(path.join(seekrPath, SeekrGui.FileNames.Dictionary))) {
         store.set(
           SeekrGui.Keys.State.Words,
-          new Operations().wordsFrom(SeekrGui.FileNames.Dictionary)
+          new Operations().wordsFrom(
+            path.join(seekrPath, SeekrGui.FileNames.Dictionary)
+          )
         )
       } else {
         store.set(SeekrGui.Keys.State.Words, [])
@@ -214,13 +239,6 @@ const createWindow = async (debug: boolean) => {
   })
 
   await mainWindow.loadFile(path.join(__dirname, 'pages/seek_words.html'))
-
-  // setInterval(() => {
-  //   mainWindow.webContents.send(
-  //     SeekrGui.Keys.Channels.ReportResults,
-  //     store.get(SeekrGui.Keys.State.ReportResults)
-  //   )
-  // }, 5000)
 
   if (debug) {
     mainWindow.webContents.openDevTools()

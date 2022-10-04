@@ -5,6 +5,7 @@ export class SeekrGui {
     static readonly Channels = class {
       static readonly AddImage = 'add-image'
       static readonly BackUpWords = 'back-up-words'
+      static readonly GetCompletionStats = 'get-completion-stats'
       static readonly GetExpandedWords = 'get-expanded-words'
       static readonly GetImagePaths = 'get-image-paths'
       static readonly GetImages = 'get-images'
@@ -31,6 +32,10 @@ contextBridge.exposeInMainWorld('seekr', {
 
   backUpWords: async () => {
     return await ipcRenderer.invoke(SeekrGui.Keys.Channels.BackUpWords)
+  },
+
+  getCompletionStats: async () => {
+    return await ipcRenderer.invoke(SeekrGui.Keys.Channels.GetCompletionStats)
   },
 
   getExpandedWords: async () => {

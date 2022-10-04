@@ -8,6 +8,7 @@ export class SeekrGui {
     static readonly Channels = class {
       static readonly AddImage = 'add-image'
       static readonly BackUpWords = 'back-up-words'
+      static readonly GetCompletionStats = 'get-completion-stats'
       static readonly GetWords = 'get-words'
       static readonly GetExpandedWords = 'get-expanded-words'
       static readonly GetImagePaths = 'get-image-paths'
